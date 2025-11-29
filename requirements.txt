@@ -1,0 +1,19 @@
+fastapi
+uvicorn
+langchain
+chromadb
+sentence-transformers
+pdfplumber
+python-docx
+pydantic
+sqlalchemy
+spacy
+tqdm
+transformers==4.41.2
+accelerate
+pdfminer.six
+torch
+
+
+# To install the spaCy English model (recommended for PII):
+# python -m spacy download en_core_web_sm
