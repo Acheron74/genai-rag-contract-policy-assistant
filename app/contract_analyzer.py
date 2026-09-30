@@ -138,23 +138,59 @@ Contract Segments:
                 string_fields = ["parties", "effective_date", "termination_clause", "confidentiality_clause", "governing_law", "notes"]
                 for field in string_fields:
                     val = data.get(field)
-                    if val:
+                    if val is not None:
                         if isinstance(val, list):
                             # Convert list to string
                             data[field] = ", ".join([str(item) for item in val])
                         elif isinstance(val, dict):
                             # Convert dict to string (e.g. "key: value, key2: value2")
                             data[field] = ", ".join([f"{k}: {v}" for k, v in val.items()])
+                        elif not isinstance(val, str):
+                            # Convert any other type (int, float, etc) to string
+                            data[field] = str(val)
                 
                 # Fix for payment_terms (Schema expects object, LLM might return string or list)
                 pt = data.get("payment_terms")
                 if pt:
                     if isinstance(pt, str):
-                         data["payment_terms"] = {"description": pt}
+                        data["payment_terms"] = {"description": pt}
                     elif isinstance(pt, list):
                         # Join list items into a single description string
                         description = ", ".join([str(item) for item in pt])
                         data["payment_terms"] = {"description": description}
+                    elif isinstance(pt, dict):
+                        # Ensure sub-fields are strings or handle malformed dict
+                        desc = pt.get("description")
+                        due = pt.get("due_date")
+
+                        if desc is None and due is None:
+                            # Flatten malformed dict into description
+                            flattened = ", ".join([f"{k}: {v}" for k, v in pt.items()])
+                            data["payment_terms"] = {"description": flattened}
+                        else:
+                            # Coerce sub-fields to strings
+                            if desc is not None:
+                                if isinstance(desc, (list, dict)):
+                                    pt["description"] = json.dumps(desc) if isinstance(desc, dict) else ", ".join([str(i) for i in desc])
+                                else:
+                                    pt["description"] = str(desc)
+                            if due is not None:
+                                if isinstance(due, (list, dict)):
+                                    pt["due_date"] = json.dumps(due) if isinstance(due, dict) else ", ".join([str(i) for i in due])
+                                else:
+                                    pt["due_date"] = str(due)
+                            data["payment_terms"] = pt
+
+                # Coerce risk_score to integer
+                risk_score = data.get("risk_score")
+                if risk_score is not None:
+                    try:
+                        data["risk_score"] = int(risk_score)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid risk_score: {risk_score}, defaulting to 0")
+                        data["risk_score"] = 0
+                else:
+                    data["risk_score"] = 0
                 
                 contract_data = ContractSchema(**data)
                 return contract_data
