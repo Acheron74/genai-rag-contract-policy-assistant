@@ -30,14 +30,29 @@ def mask_pii(text: str) -> str:
         return ""
         
     doc = nlp(text)
+    return _mask_entities(doc)
+
+def mask_pii_batch(texts: list[str]) -> list[str]:
+    """
+    Masks PII in a list of texts using spaCy's batch processing (nlp.pipe).
+    Entities masked: PERSON, ORG, GPE.
     
-    # We iterate and replace characters with '*' or replace the whole entity with [LABEL]
-    # Replacing with [LABEL] is cleaner for RAG context.
+    Args:
+        texts: A list of input text strings.
+
+    Returns:
+        A list of texts with PII entities replaced by [LABEL] placeholders.
+    """
+    if not texts:
+        return []
     
-    # We need to be careful with replacing in-place if we change string length.
-    # Easier to rebuild string or use replacements.
-    
-    # Let's use a list of replacements and apply them.
+    return [_mask_entities(doc) for doc in nlp.pipe(texts)]
+
+def _mask_entities(doc) -> str:
+    """
+    Internal helper to mask entities in a spaCy Doc object.
+    """
+    text = doc.text
     replacements = []
     for ent in doc.ents:
         if ent.label_ in ["PERSON", "ORG", "GPE"]:

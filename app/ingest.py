@@ -5,7 +5,7 @@ import chromadb
 from typing import List, Dict
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.embeddings import embed_texts
-from app.pii import mask_pii
+from app.pii import mask_pii_batch
 import logging
 
 # Configure logging
@@ -134,7 +134,7 @@ def ingest_documents():
 
         # Mask PII in each chunk
         # logger.info("Masking PII...")
-        chunks = [mask_pii(chunk) for chunk in raw_chunks]
+        chunks = mask_pii_batch(raw_chunks)
 
         # Embed
         # logger.info(f"Embedding {len(chunks)} chunks...")
