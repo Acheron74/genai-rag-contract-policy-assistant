@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional, List
 from app.rag_service import RAGService
 from app.schemas import ContractSchema, PaymentTerms
 import re
+import threading
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,16 +18,25 @@ class ContractAnalyzer:
     """
     def __init__(self, rag_service: RAGService):
         self.rag_service = rag_service
+        self._cache = {}
+        self._cache_lock = threading.Lock()
 
     def analyze(self, file_name: str) -> ContractSchema:
         """
         Analyzes a specific contract file.
-        1. Retrieves all chunks for the file from ChromaDB.
-        2. Filters and organizes chunks into relevant sections (Parties, Dates, etc.).
-        3. Constructs a prompt with this 'Smart Context'.
-        4. Generates a JSON response using the LLM.
-        5. Validates and cleans the output to match ContractSchema.
+        1. Checks if the result is already in the cache.
+        2. Retrieves all chunks for the file from ChromaDB.
+        3. Filters and organizes chunks into relevant sections (Parties, Dates, etc.).
+        4. Constructs a prompt with this 'Smart Context'.
+        5. Generates a JSON response using the LLM.
+        6. Validates and cleans the output to match ContractSchema.
+        7. Caches the result for future use.
         """
+        with self._cache_lock:
+            if file_name in self._cache:
+                logger.info(f"Using cached analysis for: {file_name}")
+                return self._cache[file_name]
+
         logger.info(f"Analyzing contract: {file_name}")
         
         # 1. Retrieve ALL chunks for the file
@@ -157,6 +167,11 @@ Contract Segments:
                         data["payment_terms"] = {"description": description}
                 
                 contract_data = ContractSchema(**data)
+
+                # Cache successful analysis
+                with self._cache_lock:
+                    self._cache[file_name] = contract_data
+
                 return contract_data
             except json.JSONDecodeError:
                 logger.error(f"Failed to decode JSON: {response}")
