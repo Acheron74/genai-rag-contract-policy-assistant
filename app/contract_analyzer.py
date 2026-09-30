@@ -155,6 +155,30 @@ Contract Segments:
                         # Join list items into a single description string
                         description = ", ".join([str(item) for item in pt])
                         data["payment_terms"] = {"description": description}
+                    elif isinstance(pt, dict):
+                        # If it's a dict but missing expected keys, flatten it to description
+                        if not any(k in pt for k in ["description", "due_date"]):
+                            data["payment_terms"] = {
+                                "description": ", ".join([f"{k}: {v}" for k, v in pt.items()])
+                            }
+                        else:
+                            # Normalize existing sub-fields to strings
+                            for sub_field in ["description", "due_date"]:
+                                sub_val = pt.get(sub_field)
+                                if sub_val is not None:
+                                    if isinstance(sub_val, list):
+                                        pt[sub_field] = ", ".join([str(i) for i in sub_val])
+                                    elif isinstance(sub_val, dict):
+                                        pt[sub_field] = ", ".join([f"{k}: {v}" for k, v in sub_val.items()])
+                                    else:
+                                        pt[sub_field] = str(sub_val)
+
+                # Fix for risk_score (Ensure it's an integer)
+                risk_score = data.get("risk_score")
+                try:
+                    data["risk_score"] = int(risk_score) if risk_score is not None else 0
+                except (ValueError, TypeError):
+                    data["risk_score"] = 0
                 
                 contract_data = ContractSchema(**data)
                 return contract_data
